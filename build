@@ -1,0 +1,49 @@
+#!/bin/bash
+sudo apt install wget
+MANIFEST=git://github.com/SHRP/platform_manifest_twrp_omni.git
+BRANCH=v3_10.0 
+DEVICE=RMX1941
+PATH=device/realme/RMX1941
+TREE=https://github.com/SHRP-Devices/device_realme_RMX1941.git
+mkdir -p /tmp/rec
+cd /tmp/rec
+
+# Repo init command, that -device,-mips,-darwin,-notdefault part will save you more time and storage to sync, add more according to your rom and choice.Optimization is welcomed! Let's make it quit, and with depth=1 so that no unnecessary things.
+repo init --no-repo-verify --depth=1 -u "$MANIFEST" -b "$BRANCH" -g default,-device,-mips,-darwin,-notdefault
+git config --global user.name "siddhrsh"
+git config --global user.email "skoyande17@gmail.com"
+
+# Sync source with -q, no need unnecessary messages, you can remove -q if want! try with -j30 first, if fails, it will try again with -j8
+repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j$(nproc --all) || repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune --force-sync -j8
+
+pwd
+ls
+
+##delete these lines, and replace with your own lines of device sauce
+git clone "$TREE" "$PATH"
+
+cd /tmp/rec
+rm -rf .repo
+source build/envsetup.sh
+lunch omni_$DEVICE-eng
+export SKIP_API_CHECKS=true
+export SKIP_ABI_CHECKS=true
+export ALLOW_MISSING_DEPENDENCIES=true
+cd /tmp/rec
+export CCACHE_DIR=/tmp/ccache  ##use additional flags if you need(optional)
+export CCACHE_EXEC=$(which ccache)
+export USE_CCACHE=1
+
+ccache -M 30G
+ccache -o compression=true
+ccache -z
+ccache -c
+
+make_rec(){
+	mka recoveryimage
+	curl -sL https://git.io/file-transfer | sh
+	./transfer wet out/target/product/$DEVICE/*.img
+    ./transfer wet out/target/product/$DEVICE/*.zip
+}
+
+make_rec
